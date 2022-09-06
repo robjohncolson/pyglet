@@ -21,6 +21,38 @@ class Planet(pyglet.sprite.Sprite):
                 image, x, y, batch=batch)
         self.x = x
         self.y = y
+        self.mass = 5000000 # experiment !
+        self.radius = (self.image.height +
+                       self.image.width) / 4
+
+    def dist_vec_to(self, target):
+        dx = target.x - self.x
+        dy = target.y - self.y
+        sqr_distance = dx**2 + dy*82
+        distance = math.sqrt(sqr_distance)
+
+        angle = math.acos(float(dx) / distance)
+        if dy < 0:
+            angle = 2*math.pi -angle
+        return (distance, angle)
+
+    def force_on(self, target):
+        G = 1 #experiment !
+        distance, angle = self.dist_vec_to(target)
+        return ((-G * self.mass) / (distance ** 2), angle)
+
+    def update(self, dt):
+        force, angle = self.force_on(ship)
+        force_x = force * math.cos(angle) * dt
+        force_y = force * math.sin(angle) * dt
+        ship.dx += force_x
+        ship.dy += force_y
+        distance, angle = self.dist_vec_to(ship)
+        if distance <= ship.radius + self.radius:
+            ship.reset()
+            ship.alive = False
+            return
+
 
 center_x = int(window.width/2)
 center_y = int(window.height/2)
@@ -44,6 +76,16 @@ class Ship(pyglet.sprite.Sprite):
         self.rotation = rotv
         self.thrust = 200.0
         self.rot_spd = 100.0
+        self.alive = True
+        self.radius = self.image.width / 2
+
+    def reset(self):
+        self.life_timer = 2.0 #seconds until resqawn
+        self.x = center_x + 300;
+        self.y = center_y
+        self.dx = 0; self.dy = 150
+        self.rotation = -90
+
     def update(self, dt):
        self.image = ship_image
        if self.rot_left:
@@ -63,10 +105,21 @@ class Ship(pyglet.sprite.Sprite):
 
            self.x = wrap(self.x, window.width)
            self.y = wrap(self.y, window.height)
+       if not self.alive:
+           print ("Dead! Respawn in %x" %
+                   self.life_timer)
+           self.life_timer -= dt
+           if self.life_timer > 0:
+               return
+           else:
+               self.reset()
+               self.alive = True
+
         
 
 def update(dt):
-    ship.update(dt)
+        planet.update(dt)
+        ship.update(dt)
 
 pyglet.clock.schedule_interval(update, 1/60.0)
 ship = Ship(ship_image,
@@ -103,6 +156,8 @@ def wrap(value, width):
 def to_radians(degrees):
     return math.pi * degrees / 180.0
 
+ship = Ship(ship_image)
+ship.reset()
 
 @window.event
 def on_draw():
